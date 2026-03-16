@@ -36,6 +36,10 @@
             .url = "git+https://codeberg.org/7Games/zig-sdl3?ref=master#6acec40c284da6b64f986774636ec4dc2b3cab62",
             .hash = "sdl3-0.1.9-NmT1Q5OEJwApdDcKAYsOGh1V38CbmVohoMSJvE4mXscR",
         },
+        .ffmpeg = .{
+            .url = "git+https://github.com/allyourcodebase/ffmpeg.git#93a013ca70d0e52ec8466fdb7f4ce3c8e1c6c78c",
+            .hash = "ffmpeg-7.0.1-9-zT7QA1qACAQoyIfPuk8EYU3Y2MefLFq84XB_pnplNh7Z",
+        },
     },
     .paths = .{
         "build.zig",
