@@ -283,3 +283,71 @@ ffmpeg 包的 `build.zig` 中多个 POSIX 相关标志未考虑 Windows：
 .HAVE_SLEEP = t.os.tag == .windows,
 .HAVE_MAPVIEWOFFILE = t.os.tag == .windows,
 ```
+
+---
+
+# Issue: FFmpeg 更多 Windows 编译错误 (GLOB, USLEEP, UNIX, D3D, MFENC)
+
+## 问题描述
+
+在 Windows 上编译 FFmpeg 时，出现更多错误：
+
+```
+error: 'glob.h' file not found
+error: call to undeclared function 'usleep'
+error: unknown type name 'DXVA_PictureParameters'
+error: 'compat/w32dlfcn.h' file not found
+error: 'sys/un.h' file not found
+```
+
+## 根本原因
+
+ffmpeg 包的 `build.zig` 中更多 POSIX/Windows 特定标志未正确设置：
+
+- `HAVE_GLOB = true` - Windows 没有 `glob.h`
+- `HAVE_USLEEP = true` - Windows 使用 `Sleep()` 或其他 API
+- `CONFIG_UNIX_PROTOCOL = true` - Unix domain sockets 不存在于 Windows
+- D3D12VA/MFENC 源文件在 Windows 上编译但需要缺失的 Windows SDK 头文件
+
+## 修复方案
+
+修改 `ffmpeg-7.0.1-9-zT7QA1qACAQoyIfPuk8EYU3Y2MefLFq84XB_pnplNh7Z/build.zig`：
+
+```zig
+// 修改前：
+.HAVE_GLOB = true,
+// ...
+.HAVE_USLEEP = true,
+// ...
+.CONFIG_UNIX_PROTOCOL = true,
+
+// 修改后：
+.HAVE_GLOB = t.os.tag != .windows,
+// ...
+.HAVE_USLEEP = t.os.tag != .windows,
+// ...
+.CONFIG_UNIX_PROTOCOL = t.os.tag != .windows,
+```
+
+同时需要注释掉以下在 Windows 上有问题的源文件：
+
+```zig
+// D3D 硬件加速相关文件（需要 Windows SDK 特定头文件）
+//"/W/libavcodec/d3d11va.c",
+//"/W/libavcodec/d3d12va_av1.c",
+//"/W/libavcodec/d3d12va_decode.c",
+//"/W/libavcodec/d3d12va_h264.c",
+//"/W/libavcodec/d3d12va_hevc.c",
+//"/W/libavcodec/d3d12va_mpeg2.c",
+//"/W/libavcodec/d3d12va_vc1.c",
+//"/W/libavcodec/d3d12va_vp9.c",
+
+// Microsoft Media Foundation 编码器（需要缺失的 w32dlfcn.h）
+//"/W/libavcodec/mfenc.c",
+
+// DirectShow 捕获（需要缺失的 w32dlfcn.h）
+//"/W/libavfilter/vsrc_ddagrab.c",
+
+// Unix domain sockets（Windows 不支持）
+//"libavformat/unix.c",
+```
