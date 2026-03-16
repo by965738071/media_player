@@ -33,6 +33,12 @@ pub fn streams(self: *Self) []*av.Stream {
     return self.ptr.streams[0..self.ptr.nb_streams];
 }
 
+pub fn bestStream(self: *Self, mediaType: av.MediaType, relatedStream: ?i32) ?av.Stream {
+    const result = av.av_find_best_stream(self.ptr, mediaType, -1, relatedStream orelse 1, null, 0);
+    if (result < 0) return null;
+    return self.ptr.streams[@intCast(result)];
+}
+
 pub const StreamInfo = struct {
     stream: *av.Stream,
     info: Info,
@@ -67,16 +73,32 @@ pub const StreamInfo = struct {
             };
         }
     };
+
+    pub fn init(stream: *av.Stream) SelfInfo {
+        return SelfInfo{ .stream = stream, .info = .{} };
+    }
 };
 
 test "hello" {
-    var demuxer = try @This().init("f:\\bxb\\other\\zig\\test.mp4");
+    var demuxer = try @This().init("/test.mp4");
     defer demuxer.deinit();
     var packet = try Packet.init();
     defer packet.deinit();
     var packet_count: i32 = 0;
     while (true) {
         const stream = demuxer.streamFromPacket(packet);
+        const info = StreamInfo.init(stream);
+        switch (info.info) {
+            .audio => {
+                std.debug.print("audio: sample_rate={}\n", .{info.info.audio.sample_rate});
+            },
+            .video => {
+                std.debug.print("video: width={} height={}\n", .{ info.info.video.width, info.info.video.height });
+            },
+            .other => {
+                std.debug.print("other: codec_type={}\n", .{info.info.other});
+            },
+        }
         std.debug.print("{any}\n", .{stream});
         packet_count += 1;
     }
