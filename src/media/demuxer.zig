@@ -11,18 +11,11 @@ ptr: ?*av.FormatContext,
 pub fn init(url: [:0]const u8) !Self {
     std.debug.print("Opening: {s}\n", .{url});
     
-    // 尝试直接打开文件
     var ptr: ?*av.FormatContext = null;
     const result = av.avformat_open_input(&ptr, url, null, null);
     if (result < 0) {
-        // 如果 file:// 失败，尝试不带协议的路径
-        std.debug.print("file:// failed, trying without protocol\n", .{});
-        const alt_url = url["file:///"[0..].len..];
-        const result2 = av.avformat_open_input(&ptr, alt_url, null, null);
-        if (result2 < 0) {
-            std.debug.print("avformat_open_input failed with error code: {} and {}\n", .{ result, result2 });
-            return error.FailedToOpenInput;
-        }
+        std.debug.print("avformat_open_input failed with error code: {}\n", .{result});
+        return error.FailedToOpenInput;
     }
     errdefer av.avformat_close_input(&ptr);
 
