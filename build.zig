@@ -98,9 +98,24 @@ pub fn build(b: *std.Build) !void {
 
     const run_exe_tests = b.addRunArtifact(exe_tests);
 
+    // 添加 demuxer 测试
+    const demuxer_test = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/media/demuxer_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    demuxer_test.root_module.addImport("ffmpeg", ffmpeg_dep.module("av"));
+    demuxer_test.root_module.addImport("core", core.root_module);
+
+    const run_demuxer_test = b.addRunArtifact(demuxer_test);
+
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
+    test_step.dependOn(&run_demuxer_test.step);
 }
 
 // 辅助函数：递归收集目录下的所有 .c 文件

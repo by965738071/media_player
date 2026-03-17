@@ -1,6 +1,7 @@
 pub const Window = @import("window.zig");
 pub const Event = @import("event.zig").Event;
 pub const sdl = @import("sdl3");
+pub const Texture = @import("texture.zig");
 
 pub fn init() !void {
     try sdl.init(.{

@@ -349,5 +349,61 @@ ffmpeg 包的 `build.zig` 中更多 POSIX/Windows 特定标志未正确设置：
 //"/W/libavfilter/vsrc_ddagrab.c",
 
 // Unix domain sockets（Windows 不支持）
+//"libavutil/macos_kperf.c",  // macOS 专用
 //"libavformat/unix.c",
+```
+
+---
+
+# Issue: FFmpeg MMX/SSE 函数和 macOS 特定文件
+
+## 问题描述
+
+在 Windows 上编译 FFmpeg 时，出现以下错误：
+
+```
+error: use of undeclared identifier 'put_pixels16_y2_mmxext'
+error: use of undeclared identifier 'avg_pixels16_mmxext'
+...
+error: 'dlfcn.h' file not found (macos_kperf.c)
+```
+
+## 根本原因
+
+1. **MMX/SSE 函数**: 在 Windows 上由于 NASM 不可用，`.asm` 文件无法编译，导致所有 MMX/SSE 内联函数未定义。
+
+2. **macos_kperf.c**: 这是 macOS 专用文件，需要 `dlfcn.h`，在 Windows 上不应编译。
+
+## 修复方案
+
+### 1. 禁用所有 x86 SIMD 功能（在 Windows 上）
+
+修改 `ffmpeg-7.0.1-9-zT7QA1qACAQoyIfPuk8EYU3Y2MefLFq84XB_pnplNh7Z/build.zig`：
+
+```zig
+// 将所有 x86 相关 HAVE 标志添加 `and t.os.tag != .windows` 条件
+
+// 例如：
+.HAVE_MMX = have_x86_feat(t, .mmx) and t.os.tag != .windows,
+.HAVE_MMXEXT = have_x86_feat(t, .mmx) and t.os.tag != .windows,
+.HAVE_SSE = have_x86_feat(t, .sse) and t.os.tag != .windows,
+.HAVE_SSE2 = have_x86_feat(t, .sse2) and t.os.tag != .windows,
+// ... 等等
+
+// 同样适用于 _EXTERNAL 和 _INLINE 变体
+.HAVE_MMX_EXTERNAL = have_x86_feat(t, .mmx) and t.os.tag != .windows,
+.HAVE_MMX_INLINE = have_x86_feat(t, .mmx) and t.os.tag != .windows,
+// ...
+
+// 以及
+.HAVE_MMX2 = have_x86_feat(t, .mmx) and t.os.tag != .windows,
+.HAVE_I686 = (have_x86_feat(t, .cmov) and ...) and t.os.tag != .windows,
+.HAVE_I686_EXTERNAL = ... and t.os.tag != .windows,
+.HAVE_I686_INLINE = ... and t.os.tag != .windows,
+```
+
+### 2. 注释掉 macOS 专用文件
+
+```zig
+//"libavutil/macos_kperf.c",
 ```
