@@ -4,6 +4,7 @@ const Stream = @import("stream.zig");
 const Packet = @import("packet.zig");
 const Frame = @import("frame.zig");
 const MediaType = @import("ffmpeg").MediaType;
+const std = @import("std");
 
 pub const Self = @This();
 
@@ -26,9 +27,10 @@ pub fn init(url: [:0]const u8) !Self {
     const video_stream = demuxer.bestStream(MediaType.VIDEO, null);
     const audio_stream = demuxer.bestStream(MediaType.AUDIO, video_stream);
 
-    var video_decoder = try Decoder.init(video_stream.codec_parameters(), 1);
+    // 将 stream 传递给解码器以便设置 time_base
+    var video_decoder = try Decoder.init(video_stream, 1);
     errdefer video_decoder.deinit();
-    var audio_decoder = try Decoder.init(audio_stream.codec_parameters(), 2);
+    var audio_decoder = try Decoder.init(audio_stream, 2);
     errdefer audio_decoder.deinit();
 
     var packet = try Packet.init();
@@ -69,15 +71,25 @@ pub fn drain(self: *Self) !?Frame {
 
 pub fn fetch(self: *Self) !bool {
     if (self.is_pending_packet) {
-        while (true) {
-            try self.video_decoder.flush();
-            try self.audio_decoder.flush();
-            self.is_flushed = true;
+        // 刷新解码器获取剩余帧
+        self.video_decoder.flush() catch {};
+        self.audio_decoder.flush() catch {};
+        self.is_flushed = true;
+        self.is_pending_packet = false;
+        return false;
+    }
+
+    // 从解复用器读取下一个数据包
+    self.demuxer.next(&self.packet) catch |err| {
+        if (err == error.EndOfFile) {
+            // 刷新解码器获取剩余帧
+            self.video_decoder.flush() catch {};
+            self.audio_decoder.flush() catch {};
             return false;
         }
-
-        self.is_pending_packet = false;
-    }
+        return err;
+    };
+    self.is_pending_packet = true;
     return true;
 }
 pub fn feed(self: *Self) !void {
@@ -86,9 +98,12 @@ pub fn feed(self: *Self) !void {
         return;
     };
 
-    decoder.push(self.packet) catch |err| {
+    decoder.push(self.packet) catch {
+        // EndOfFile 意味着解码器已处理完所有输入，这是正常的
+        // 忽略此错误，继续尝试获取帧
+
         self.is_pending_packet = false;
-        return err;
+        return;
     };
 }
 

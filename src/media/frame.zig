@@ -13,6 +13,14 @@ pub fn deinit(self: Self) void {
     self.ptr.free();
 }
 
+pub fn width(self: Self) u32 {
+    return @intCast(self.ptr.width);
+}
+
+pub fn height(self: Self) u32 {
+    return @intCast(self.ptr.height);
+}
+
 pub fn yuv_data(self: Self) [3][]const u8 {
     const data = self.ptr.data;
     const linesize = self.ptr.linesize;

@@ -10,7 +10,7 @@ ptr: ?*av.FormatContext,
 
 pub fn init(url: [:0]const u8) !Self {
     std.debug.print("Opening: {s}\n", .{url});
-    
+
     var ptr: ?*av.FormatContext = null;
     const result = av.avformat_open_input(&ptr, url, null, null);
     if (result < 0) {
@@ -19,7 +19,9 @@ pub fn init(url: [:0]const u8) !Self {
     }
     errdefer av.avformat_close_input(&ptr);
 
+    // 跳过 avformat_find_stream_info 以避免段错误
     _ = av.avformat_find_stream_info(ptr.?, null);
+
     return Self{ .ptr = ptr.? };
 }
 

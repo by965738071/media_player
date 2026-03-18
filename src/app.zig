@@ -47,7 +47,15 @@ pub fn deinit(self: *Self) void {
 
 pub fn update(self: *Self) !void {
     if (try self.media.next()) |frame| {
-        try self.texture.updateYuv(frame.yuv_data(), frame.stride());
+        const w = frame.width();
+        const h = frame.height();
+        std.debug.print("Got frame: {}x{}\n", .{ w, h });
+        // 只渲染视频帧（宽度 > 0）
+        if (w > 0 and h > 0) {
+            try self.texture.updateYuv(frame.yuv_data(), frame.stride());
+        }
+    } else {
+        std.debug.print("No frame available\n", .{});
     }
 }
 

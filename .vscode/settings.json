@@ -4,5 +4,6 @@
         "test",
         "-Dtest-filter=${filter}",
         ""
-    ]
+    ],
+    "search.useIgnoreFiles": false
 }
